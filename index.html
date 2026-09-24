@@ -65,8 +65,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .drawer h2{margin:0 0 10px;font-size:1.05rem;color:var(--crimson)}
 .grp{margin:0 0 16px}
 .grp h3{margin:0 0 8px;font-size:.95rem}
+.row-wrap{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row-cell{flex:1 1 0;min-width:0;padding:10px 12px;border-right:1px solid var(--line)}
+.row-cell:last-child{border-right:none}
+.row-cell h4{margin:0 0 8px;font-size:.82rem;font-weight:600;color:var(--muted);line-height:1.25}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{min-width:44px;height:40px;border:1px solid var(--line);background:var(--bar);border-radius:8px;font-weight:600}
+.chip{min-width:34px;height:30px;padding:0 8px;border:1px solid var(--line);background:var(--bar);border-radius:7px;font-weight:600;font-size:.85rem;white-space:nowrap}
 .chip:hover{background:var(--tint)}
 .chip[aria-current="page"]{background:var(--crimson);border-color:var(--crimson);color:var(--on-crimson)}
 .hint{color:var(--muted);font-size:.85rem;margin:12px 0 0}
@@ -142,6 +146,14 @@ const TEXT_PAGES = [
     {ar:'اللَّهُمَّ اشْفِهِ وَاشْفِ مَرْضَى الْمُسْلِمِينَ، شِفَاءً لَا يُغَادِرُ سَقَمًا، وَارْزُقْهُ الْعَافِيَةَ فِي دِينِهِ وَدُنْيَاهُ وَأَهْلِهِ وَمَالِهِ.',
      tr:'Ya Allah, sembuhkanlah dia dan sembuhkanlah seluruh orang Islam yang sedang sakit, dengan kesembuhan yang tidak meninggalkan penyakit. Kurniakanlah kepadanya kesejahteraan dalam agamanya, dunianya, keluarganya dan hartanya.'},
     {ar:'اللَّهُمَّ آمِينَ.'}
+  ]},
+  {title:'Doa Sempena Hari Lahir', blocks:[
+    {tr:'Ya Allah, berkatilah umurnya, jadikanlah tahun barunya lebih baik daripada tahun yang lalu. Jadikanlah hari-hari yang mendatang, lebih mendekatkan dirinya kepada-Mu, dan lebih banyak ketaatan dilakukan dengan istiqamah.'},
+    {tr:'Ya Allah, hidupkanlah dia selama kehidupan itu lebih baik baginya, dan wafatkanlah dia apabila kematian itu lebih baik baginya.'},
+    {tr:'Ya Allah, ampunkanlah apa yang telah berlalu daripadanya, berkatilah apa yang masih berbaki dalam hidupnya, dan perbaikilah agama, kehidupan dunia serta akhiratnya.'},
+    {tr:'Ya Allah, apabila Engkau berikan nikmat, jadikan dia bersyukur; apabila Engkau uji, jadikan dia bersabar; dan apabila dia berdosa, gerakkan hatinya untuk bertaubat.'},
+    {tr:'Ya Allah, jadikanlah sebaik-baik umurnya adalah pada penghujungnya, sebaik-baik amalnya pada penutupnya, dan sebaik-baik harinya ialah hari ketika dia bertemu dengan-Mu.'},
+    {ar:'اللَّهُمَّ آمِينَ يَا رَبَّ الْعَالَمِينَ.'}
   ]}
 ];
 function renderTextPage(i){
@@ -155,8 +167,8 @@ const META = [{l:'Kulit',s:0}]
   .concat([29,30,31,32,33,34,35].map(n=>({l:String(n),s:3})))         // Kaifiyat Tahlil
   .concat([36,37,38,39,40].map(n=>({l:String(n),s:4})))               // Doa Tahlil
   .concat(['01','02'].map(n=>({l:String(n),s:5})))                     // Doa Selamat
-  .concat(TEXT_PAGES.map((_,i)=>({l:'',s:6,text:i})));                 // Doa Untuk Pesakit (typed, not scanned)
-const SECS = ['Kulit','Yasin','Doa Yasin','Kaifiyat Tahlil','Doa Tahlil','Doa Selamat','Doa Untuk Pesakit'];
+  .concat(TEXT_PAGES.map((_,i)=>({l:'',s:6+i,text:i})));                // typed doa pages (not scanned)
+const SECS = ['Kulit','Yasin','Doa Yasin','Kaifiyat Tahlil','Doa Tahlil','Doa Selamat'].concat(TEXT_PAGES.map(p=>p.title));
 const TOTAL = META.length;
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
@@ -220,13 +232,30 @@ stage.addEventListener('touchend',e=>{
   if(Math.abs(dx)>70 && Math.abs(dx)>Math.abs(dy)*1.6 && Date.now()-st<600) show(dx>0?cur+1:cur-1);
 },{passive:true});
 
-/* contents */
+/* contents: Doa Selamat, Doa Pesakit and Doa Hari Lahir sit side by side in one bordered row */
+const HIDDEN_CHIPS = new Set(['2:25','3:29','4:36']);   // title-only divider pages: still viewable via paging, just no shortcut
+const TEXT_SECS = TEXT_PAGES.map((_,i)=>6+i);
+const STACK_GROUPS = [
+  {title:SECS[1], secs:[1]},
+  {title:SECS[2], secs:[2]},
+  {title:SECS[3], secs:[3]},
+  {title:SECS[4], secs:[4]}
+];
+const ROW_GROUPS = [
+  {title:'Doa Selamat', secs:[5]},
+  {title:'Doa Pesakit', secs:[TEXT_SECS[0]]},
+  {title:'Doa Hari Lahir', secs:[TEXT_SECS[1]]}
+];
 const toc=document.getElementById('toc');
-toc.innerHTML = SECS.map((name,s)=>{
-  if(s===0) return '';   // cover has no shortcut in the contents
-  const chips=META.map((m,i)=>m.s===s?`<button class="chip" data-i="${i}">${m.l||(i+1)}</button>`:'').join('');
-  return `<div class="grp"><h3>${name}</h3><div class="chips">${chips}</div></div>`;
+const chipsFor = secs => META.map((m,i)=>{
+  if(!secs.includes(m.s)) return '';
+  if(HIDDEN_CHIPS.has(m.s+':'+m.l)) return '';   // title-only pages: reachable by paging, no shortcut needed
+  return `<button class="chip" data-i="${i}">${m.l||'1'}</button>`;
 }).join('');
+toc.innerHTML = STACK_GROUPS.map(g=>`<div class="grp"><h3>${g.title}</h3><div class="chips">${chipsFor(g.secs)}</div></div>`).join('')
+  + `<div class="grp"><div class="row-wrap">`
+  + ROW_GROUPS.map(g=>`<div class="row-cell"><h4>${g.title}</h4><div class="chips">${chipsFor(g.secs)}</div></div>`).join('')
+  + `</div></div>`;
 function markToc(){ toc.querySelectorAll('.chip').forEach(c=>{ if(+c.dataset.i===cur) c.setAttribute('aria-current','page'); else c.removeAttribute('aria-current'); }); }
 const drawer=document.getElementById('drawer'), scrim=document.getElementById('scrim');
 function openToc(){ drawer.classList.add('on'); scrim.classList.add('on'); drawer.setAttribute('aria-hidden','false'); const c=toc.querySelector('[aria-current]'); if(c) c.scrollIntoView({block:'center'}); }
